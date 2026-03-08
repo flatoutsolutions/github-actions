@@ -1,0 +1,72 @@
+name: 'Setup Environment'
+description: 'Node.js + Yarn setup with layered dependency caching for the FlatOut Solutions platform stack'
+
+inputs:
+  node-version:
+    description: 'Node.js version'
+    default: '22.21.1'
+  convex-codegen:
+    description: 'Run Convex codegen (true/false)'
+    default: 'false'
+  convex-deploy-key:
+    description: 'Convex deploy key for codegen'
+    default: ''
+  install-event-relay:
+    description: 'Install event-relay dependencies (true/false)'
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    # ── Node.js (NO cache: yarn — we handle caching ourselves) ──
+    - uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Enable Corepack
+      shell: bash
+      run: corepack enable
+
+    # ── Layer 1: Root node_modules ──
+    - name: Cache root node_modules
+      id: cache-root
+      uses: actions/cache@v4
+      with:
+        path: node_modules
+        key: node-modules-root-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+
+    - name: Install root dependencies
+      if: steps.cache-root.outputs.cache-hit != 'true'
+      shell: bash
+      run: yarn install --immutable
+
+    # ── Layer 2: Convex codegen ──
+    - name: Cache Convex codegen
+      if: inputs.convex-codegen == 'true'
+      id: cache-codegen
+      uses: actions/cache@v4
+      with:
+        path: convex/_generated
+        key: convex-codegen-${{ runner.os }}-${{ hashFiles('convex/**/*.ts', '!convex/_generated/**') }}
+
+    - name: Convex codegen
+      if: inputs.convex-codegen == 'true' && steps.cache-codegen.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        CONVEX_DEPLOY_KEY: ${{ inputs.convex-deploy-key }}
+      run: npx convex codegen
+
+    # ── Layer 3: Event Relay node_modules ──
+    - name: Cache event-relay node_modules
+      if: inputs.install-event-relay == 'true'
+      id: cache-event-relay
+      uses: actions/cache@v4
+      with:
+        path: event-relay/node_modules
+        key: node-modules-event-relay-${{ runner.os }}-${{ hashFiles('event-relay/yarn.lock') }}
+
+    - name: Install event-relay dependencies
+      if: inputs.install-event-relay == 'true' && steps.cache-event-relay.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: event-relay
+      run: yarn install --immutable
