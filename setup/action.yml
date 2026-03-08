@@ -4,13 +4,28 @@ description: 'Node.js + Yarn setup with layered dependency caching for the FlatO
 inputs:
   node-version:
     description: 'Node.js version'
-    default: '22.21.1'
+    default: '22.x'
   convex-codegen:
     description: 'Run Convex codegen (true/false)'
     default: 'false'
   convex-deploy-key:
     description: 'Convex deploy key for codegen'
     default: ''
+  convex-dir:
+    description: 'Working directory for Convex codegen'
+    default: '.'
+  convex-generated-path:
+    description: 'Path to Convex generated output (for caching)'
+    default: 'convex/_generated'
+  convex-source-glob:
+    description: 'Glob pattern for Convex source files (for cache key)'
+    default: 'convex/**/*.ts'
+  convex-source-exclude-glob:
+    description: 'Glob pattern to exclude from Convex source hash'
+    default: 'convex/_generated/**'
+  install-frontend:
+    description: 'Install frontend dependencies from frontend/ (true/false)'
+    default: 'false'
 
 runs:
   using: composite
@@ -37,18 +52,34 @@ runs:
       shell: bash
       run: yarn install --immutable
 
-    # ── Layer 2: Convex codegen ──
+    # ── Layer 2: Frontend node_modules ──
+    - name: Cache frontend node_modules
+      if: inputs.install-frontend == 'true'
+      id: cache-frontend
+      uses: actions/cache@v4
+      with:
+        path: frontend/node_modules
+        key: node-modules-frontend-${{ runner.os }}-${{ hashFiles('frontend/yarn.lock') }}
+
+    - name: Install frontend dependencies
+      if: inputs.install-frontend == 'true' && steps.cache-frontend.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: frontend
+      run: yarn install --immutable
+
+    # ── Layer 3: Convex codegen ──
     - name: Cache Convex codegen
       if: inputs.convex-codegen == 'true'
       id: cache-codegen
       uses: actions/cache@v4
       with:
-        path: convex/_generated
-        key: convex-codegen-${{ runner.os }}-${{ hashFiles('convex/**/*.ts', '!convex/_generated/**') }}
+        path: ${{ inputs.convex-generated-path }}
+        key: convex-codegen-${{ runner.os }}-${{ hashFiles(inputs.convex-source-glob, format('!{0}', inputs.convex-source-exclude-glob)) }}
 
     - name: Convex codegen
       if: inputs.convex-codegen == 'true' && steps.cache-codegen.outputs.cache-hit != 'true'
       shell: bash
+      working-directory: ${{ inputs.convex-dir }}
       env:
         CONVEX_DEPLOY_KEY: ${{ inputs.convex-deploy-key }}
       run: npx convex codegen

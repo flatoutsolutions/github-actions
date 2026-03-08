@@ -10,12 +10,26 @@ Node.js + Yarn setup with layered dependency caching. Replaces the typical `setu
 
 **Cache layers:**
 
-| Layer | Cached path         | Cache key                | Skips on hit         |
-| ----- | ------------------- | ------------------------ | -------------------- |
-| 1     | `node_modules`      | `yarn.lock` hash         | `yarn install`       |
-| 2     | `convex/_generated` | Convex source files hash | `npx convex codegen` |
+| Layer | Cached path                        | Cache key                 | Skips on hit            |
+| ----- | ---------------------------------- | ------------------------- | ----------------------- |
+| 1     | `node_modules`                     | `yarn.lock` hash          | `yarn install`          |
+| 2     | `frontend/node_modules`            | `frontend/yarn.lock` hash | frontend `yarn install` |
+| 3     | `convex/_generated` (configurable) | Convex source files hash  | `npx convex codegen`    |
 
-**Usage:**
+**Inputs:**
+
+| Input                        | Default                | Description                                        |
+| ---------------------------- | ---------------------- | -------------------------------------------------- |
+| `node-version`               | `22.x`                 | Node.js version                                    |
+| `convex-codegen`             | `false`                | Run `npx convex codegen`                           |
+| `convex-deploy-key`          | `''`                   | Convex deploy key (required if codegen is enabled) |
+| `convex-dir`                 | `.`                    | Working directory for Convex codegen               |
+| `convex-generated-path`      | `convex/_generated`    | Path to generated output (for caching)             |
+| `convex-source-glob`         | `convex/**/*.ts`       | Source files glob (for cache key)                  |
+| `convex-source-exclude-glob` | `convex/_generated/**` | Glob to exclude from source hash                   |
+| `install-frontend`           | `false`                | Install `frontend/` dependencies                   |
+
+**Usage (root Convex):**
 
 ```yaml
 steps:
@@ -26,13 +40,21 @@ steps:
       convex-deploy-key: ${{ secrets.CONVEX_DEPLOY_KEY }}
 ```
 
-**Inputs:**
+**Usage (frontend Convex):**
 
-| Input               | Default   | Description                                        |
-| ------------------- | --------- | -------------------------------------------------- |
-| `node-version`      | `22.21.1` | Node.js version                                    |
-| `convex-codegen`    | `false`   | Run `npx convex codegen`                           |
-| `convex-deploy-key` | `''`      | Convex deploy key (required if codegen is enabled) |
+```yaml
+steps:
+  - uses: actions/checkout@v6
+  - uses: flatoutsolutions/github-actions/setup@v1
+    with:
+      install-frontend: "true"
+      convex-codegen: "true"
+      convex-deploy-key: ${{ secrets.CONVEX_DEPLOY_KEY }}
+      convex-dir: frontend
+      convex-generated-path: frontend/src/convex/_generated
+      convex-source-glob: "frontend/src/convex/**/*.ts"
+      convex-source-exclude-glob: "frontend/src/convex/_generated/**"
+```
 
 ## Versioning
 
@@ -40,5 +62,5 @@ Actions are versioned with git tags. Pin to a major version for stability:
 
 ```yaml
 - uses: flatoutsolutions/github-actions/setup@v1 # recommended
-- uses: flatoutsolutions/github-actions/setup@v1.0.0 # exact version
+- uses: flatoutsolutions/github-actions/setup@v1.2.0 # exact version
 ```
