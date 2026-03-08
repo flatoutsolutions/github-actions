@@ -11,9 +11,6 @@ inputs:
   convex-deploy-key:
     description: 'Convex deploy key for codegen'
     default: ''
-  install-event-relay:
-    description: 'Install event-relay dependencies (true/false)'
-    default: 'false'
 
 runs:
   using: composite
@@ -55,18 +52,3 @@ runs:
       env:
         CONVEX_DEPLOY_KEY: ${{ inputs.convex-deploy-key }}
       run: npx convex codegen
-
-    # ── Layer 3: Event Relay node_modules ──
-    - name: Cache event-relay node_modules
-      if: inputs.install-event-relay == 'true'
-      id: cache-event-relay
-      uses: actions/cache@v4
-      with:
-        path: event-relay/node_modules
-        key: node-modules-event-relay-${{ runner.os }}-${{ hashFiles('event-relay/yarn.lock') }}
-
-    - name: Install event-relay dependencies
-      if: inputs.install-event-relay == 'true' && steps.cache-event-relay.outputs.cache-hit != 'true'
-      shell: bash
-      working-directory: event-relay
-      run: yarn install --immutable
