@@ -42,7 +42,7 @@ runs:
     # ── Layer 1: Root node_modules ──
     - name: Cache root node_modules
       id: cache-root
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: node_modules
         key: node-modules-root-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
@@ -56,7 +56,7 @@ runs:
     - name: Cache frontend node_modules
       if: inputs.install-frontend == 'true'
       id: cache-frontend
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: frontend/node_modules
         key: node-modules-frontend-${{ runner.os }}-${{ hashFiles('frontend/yarn.lock') }}
@@ -71,7 +71,7 @@ runs:
     - name: Cache Convex codegen
       if: inputs.convex-codegen == 'true'
       id: cache-codegen
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ${{ inputs.convex-generated-path }}
         key: convex-codegen-${{ runner.os }}-${{ hashFiles(inputs.convex-source-glob, format('!{0}', inputs.convex-source-exclude-glob)) }}
