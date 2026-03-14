@@ -4,7 +4,7 @@ description: 'Node.js + Yarn setup with layered dependency caching for the FlatO
 inputs:
   node-version:
     description: 'Node.js version'
-    default: '22.x'
+    default: '24.x'
   convex-codegen:
     description: 'Run Convex codegen (true/false)'
     default: 'false'
