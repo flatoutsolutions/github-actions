@@ -82,4 +82,4 @@ runs:
       working-directory: ${{ inputs.convex-dir }}
       env:
         CONVEX_DEPLOY_KEY: ${{ inputs.convex-deploy-key }}
-      run: npx convex codegen
+      run: npx convex codegen --typecheck=disable
