@@ -1,0 +1,54 @@
+name: 'Detect changed paths'
+description: >-
+  Path-based change detection for monorepo workflows. Wraps dorny/paths-filter and
+  returns the set of filters that matched as a JSON array, so one job can gate many
+  downstream jobs.
+
+# Why a single JSON output instead of one output per filter:
+#
+# A composite action must declare its outputs statically in this file, but the set
+# of filters is supplied by the caller at runtime. Per-filter outputs are therefore
+# impossible without hard-coding every filter name every consumer might use. The
+# JSON array sidesteps that and stays reusable.
+#
+# Consumers gate with:
+#   if: contains(fromJSON(needs.detect-changes.outputs.changes), 'website')
+
+inputs:
+  filters:
+    description: >-
+      YAML (or a path to a .yml file) mapping filter names to path globs, passed
+      through to dorny/paths-filter unchanged.
+    required: true
+  base:
+    description: >-
+      Git ref to compare against. Defaults to paths-filter's own behaviour: the base
+      branch on pull_request, and the before-commit of the push on push.
+    required: false
+    default: ''
+  ref:
+    description: 'Git ref to compare. Defaults to the triggering ref.'
+    required: false
+    default: ''
+  predicate-quantifier:
+    description: "'some' (default) or 'every' - how multiple patterns in one filter combine."
+    required: false
+    default: 'some'
+
+outputs:
+  changes:
+    description: 'JSON array of the filter names that matched, e.g. ["website","mcp_server"].'
+    value: ${{ steps.filter.outputs.changes }}
+
+runs:
+  using: composite
+  steps:
+    # Deliberately does NOT check out - the caller owns checkout, so this action
+    # can run against a working tree the caller has already prepared.
+    - id: filter
+      uses: dorny/paths-filter@v4
+      with:
+        filters: ${{ inputs.filters }}
+        base: ${{ inputs.base }}
+        ref: ${{ inputs.ref }}
+        predicate-quantifier: ${{ inputs.predicate-quantifier }}

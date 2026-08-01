@@ -56,6 +56,50 @@ steps:
       convex-source-exclude-glob: "frontend/src/convex/_generated/**"
 ```
 
+### [`changes`](./changes/)
+
+Path-based change detection for monorepo workflows. Wraps [`dorny/paths-filter`](https://github.com/dorny/paths-filter) so one `detect-changes` job can gate many downstream jobs, instead of every repo re-implementing the same block.
+
+**Inputs:**
+
+| Input                  | Default  | Description                                                             |
+| ---------------------- | -------- | ----------------------------------------------------------------------- |
+| `filters`              | required | YAML mapping filter names to path globs (or a path to a `.yml` file)    |
+| `base`                 | `''`     | Ref to compare against. Empty = paths-filter's default for the event    |
+| `ref`                  | `''`     | Ref to compare. Empty = the triggering ref                              |
+| `predicate-quantifier` | `some`   | `some` or `every` — how multiple patterns within one filter combine     |
+
+**Output:** a single `changes` output — a **JSON array of the filter names that matched**.
+
+There is one output rather than one per filter because a composite action must declare its outputs statically, while the filter set is supplied by the caller at runtime. Per-filter outputs would mean hard-coding every name any consumer might use.
+
+**Usage:**
+
+```yaml
+detect-changes:
+  runs-on: ubuntu-latest
+  outputs:
+    changes: ${{ steps.filter.outputs.changes }}
+  steps:
+    - uses: actions/checkout@v6
+    - id: filter
+      uses: flatoutsolutions/github-actions/changes@v1
+      with:
+        filters: |
+          website:
+            - 'website/**'
+          server:
+            - 'server/**'
+
+deploy-website:
+  needs: detect-changes
+  if: contains(fromJSON(needs.detect-changes.outputs.changes), 'website')
+  runs-on: ubuntu-latest
+  steps: ...
+```
+
+The action does **not** check out for you — the caller owns checkout, so it can run against a tree the caller has already prepared.
+
 ## Versioning
 
 Actions are versioned with git tags. Pin to a major version for stability:
